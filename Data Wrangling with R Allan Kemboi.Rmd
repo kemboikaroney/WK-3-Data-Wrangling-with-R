@@ -1,0 +1,562 @@
+---
+title: "Data Visualisation with R - Project"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+#Defining the Question
+##a) Specifying the Data Analysis Question
+The management would like to get your assistance in understanding the current subscribed customers. Your recommendations informed by your analysis will help them make informed decisions on effective customer retention programs.
+
+To put it simply, the task is to understand current customers in order to understand how to retain them.
+
+##b) Defining the Metric for Success
+The solution will have satisfied the research question when you can identify the factors that contribute to customer churn.
+
+##c) Understanding the context
+MTN Telecom offers mobile and internet services to its customers. These services include phone, multiple lines, internet, online security, online backup, device protection, tech support, and streaming TV and movies.
+
+You have been provided with the current customer data. Since you will be working towards a descriptive report than a predictive one, you decide to think critically of the kind of questions that would help you craft customer retention programs. You then later use the given data set to answer your questions but before you start, you reading, explore, clean and visualise your dataset.
+
+##d) Recording the Experimental Design
+The steps to be taken include:
+
+Load dataset and preview its summarized information to get a feel of what you will be working with.
+Carry out data cleaning.
+Carry out data analysis.
+Interpret results.
+Provide recommendations based on results of analysis.
+Challenge your solution.
+##e) Data Relevance
+For now, the data we have contains churn data which will be critical for our research specific analysis.
+
+#2. Data Cleaning & Preparation
+
+```{r}
+# loading libraries
+library(tidyverse)
+library(reshape)
+
+```
+
+```{r}
+# Load the data below
+# --- 
+# Dataset url = https://bit.ly/2ZlpzjF
+# --- 
+# 
+telecom_customer_df <- read.csv("telecom_customer.csv")
+
+```
+
+```{r}
+# Checking the first 5 rows of data
+# ---
+# 
+head(telecom_customer_df, 5)
+```
+
+```{r}
+# Checking the last 5 rows of data
+# ---
+# YOUR CODE GOES BELOW
+# 
+tail(telecom_customer_df, 5)
+```
+
+```{r}
+# getting our dataset shape
+# ---
+#
+# 
+dim(telecom_customer_df)
+```
+This data set has 7,050 records and 21 variables.
+
+```{r}
+# dropping duplicates if any are present
+# ---
+#
+# 
+telecom_customer_df[duplicated(telecom_customer_df), ]
+```
+7 duplicate records were found
+
+```{r}
+# dropping duplicates 
+# 
+telecom_customer_df <- unique(telecom_customer_df)
+telecom_customer_df[duplicated(telecom_customer_df), ]
+```
+
+```{r}
+# dropping missing values
+# 
+sum(is.na(telecom_customer_df))
+telecom_customer_df = na.omit(telecom_customer_df)
+```
+
+```{r}
+# formatting columns to lowercase
+# ---
+#
+# 
+names(telecom_customer_df) <- tolower(names(telecom_customer_df))
+names(telecom_customer_df)
+```
+
+```{r}
+# 'senior_citizen' should be a boolean object (Yes/No), not a float binary (0.0/0.1)
+# resolving the issues in the 'senior_citizen' variable
+# ---
+#
+# 
+telecom_customer_df$seniorcitizen[telecom_customer_df$seniorcitizen == 1] <- "Yes"
+telecom_customer_df$seniorcitizen[telecom_customer_df$seniorcitizen == 0] <- "No"
+unique(telecom_customer_df$seniorcitizen)
+```
+```{r}
+# unique values in payment_method
+# ---
+unique(telecom_customer_df$paymentmethod)
+```
+```{r}
+# resolving the issues in the 'payment_method' variable
+# - Replace 'Mailed checkkk' with 'Mailed check',
+# - Replace 'Electronic checkk', 'Electronic check'
+# ---
+telecom_customer_df$paymentmethod[telecom_customer_df$paymentmethod == "Mailed checkkk"] <- "Mailed check"
+telecom_customer_df$paymentmethod[telecom_customer_df$paymentmethod == "Electronic checkk"] <- "Electronic check"
+unique(telecom_customer_df$paymentmethod)
+```
+
+```{r}
+# visual distribution of the outliers using a box plot for the 
+# 'tenure', 'monthly_charges' and 'total_charges'
+# ---
+# visual distribution of the outliers using a box plot
+
+# tenure
+ggplot(telecom_customer_df, aes(y=tenure)) +
+  geom_boxplot(fill = "red", outlier.colour = "blue", outlier.shape = 5, outlier.size = 5) +
+  stat_boxplot(geom ="errorbar") +
+  scale_x_discrete() +
+  labs(
+    title = "Boxplot of Tenure",
+    y = "Tenure"
+  ) + theme_classic() +
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0.5), 
+    axis.title.x = element_text(size = 10), 
+  ) + coord_flip()
+
+# monthlycharges
+ggplot(telecom_customer_df, aes(y=monthlycharges)) +
+  geom_boxplot(fill = "red", outlier.colour = "blue", outlier.shape = 5, outlier.size = 5) +
+  stat_boxplot(geom ="errorbar") +
+  scale_x_discrete() +
+  labs(
+    title = "Boxplot of monthlycharges",
+    y = "monthly charges"
+  ) + theme_classic() +
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0.5), 
+    axis.title.x = element_text(size = 10), 
+  ) + coord_flip()
+
+# totalcharges
+ggplot(telecom_customer_df, aes(y=totalcharges)) +
+  geom_boxplot(fill = "red", outlier.colour = "blue", outlier.shape = 5, outlier.size = 5) +
+  stat_boxplot(geom ="errorbar") +
+  scale_x_discrete() +
+  labs(
+    title = "Boxplot of totalcharges",
+    y = "total charges"
+  ) + theme_classic() +
+  theme(
+    plot.title = element_text(size = 13, face = "bold", hjust = 0.5), 
+    axis.title.x = element_text(size = 10), 
+  ) + coord_flip()
+
+```
+## Dealing with outliers
+
+```{r}
+# Removing the outliers using IQR method
+lower_bound <- quantile(telecom_customer_df$tenure, 0.025, na.rm = TRUE)
+upper_bound <- quantile(telecom_customer_df$tenure, 0.975,  na.rm = TRUE)
+
+#getting values that are not outliers
+tenure_not_outlier_values <- which(telecom_customer_df$tenure > lower_bound & telecom_customer_df$tenure < upper_bound)
+
+telecom_customer_df<- telecom_customer_df[tenure_not_outlier_values,]
+telecom_customer_df
+```
+```{r}
+lower_bound <- quantile(telecom_customer_df$monthlycharges, 0.025)
+upper_bound <- quantile(telecom_customer_df$monthlycharges, 0.975)
+
+#getting values that are not outliers
+not_outlier_values <- which(telecom_customer_df$monthlycharges > lower_bound & telecom_customer_df$monthlycharges < upper_bound)
+
+telecom_customer_df<- telecom_customer_df[not_outlier_values, ]
+telecom_customer_df
+```
+```{r}
+lower_bound <- quantile(telecom_customer_df$totalcharges, 0.025)
+upper_bound <- quantile(telecom_customer_df$totalcharges, 0.975)
+
+#getting values that are not outliers
+not_outlier_values <- which(telecom_customer_df$totalcharges > lower_bound & telecom_customer_df$monthlycharges < upper_bound)
+
+telecom_customer_df<- telecom_customer_df[not_outlier_values, ]
+telecom_customer_df
+```
+
+#3. Data Analysis
+Since our research question requires us to focus on how we can retain customers, the main variable to work with is the "churn" variable.
+
+##a) Research-specific Analysis
+What percentage of customers from our dataset churned?
+
+```{r}
+# plotting a pie chart to investigate whether MTN customers churned
+# ---
+#
+# 
+customer_churn <- telecom_customer_df %>%
+  count(churn)
+customer_churn
+
+ggplot(data=customer_churn, aes(x="", y=n, fill=churn)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set2")+
+  labs(
+    fill = "Churn",
+    title = "Customer Churn"
+  )+
+  theme_void()
+```
+We see that the majority of the customers in this dataset, 74.2% of the customers are still subscribed to MTN while 25.8% of the customers churned.
+
+```{r}
+# let's now make a comparison betweeen male and female 
+# subscribers by plotting the distribution of churn by gender
+# ---
+#
+# 
+gender_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(gender)
+gender_churn
+
+ggplot(data=gender_churn, aes(x="", y=n, fill=gender)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set1")+
+  labs(
+    fill = "Gender",
+    title = "Customer Churn by Gender"
+  )+
+  theme_void()
+```
+
+```{r}
+# plotting the distribution of churn by senior citizen below
+# ---
+#
+# 
+
+senior_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(seniorcitizen)
+senior_churn
+
+ggplot(data=senior_churn, aes(x="", y=n, fill=seniorcitizen)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set3")+
+  labs(
+    fill = "Senior Citizen",
+    title = "Customer Churn by Senior Citizen"
+  )+
+  theme_void()
+```
+
+```{r}
+#  plotting the distribution of churn by partner
+# ---
+#
+# 
+patner_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(partner)
+patner_churn
+
+ggplot(data=patner_churn, aes(x="", y=n, fill=partner)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set2")+
+  labs(
+    fill = "Partner",
+    title = "Customer Churn by Partner"
+  )+
+  theme_void()
+```
+
+```{r}
+# plotting the distribution of churn by phone service 
+# ---
+#
+# 
+phone_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(phoneservice)
+phone_churn
+
+ggplot(data=phone_churn, aes(x="", y=n, fill=phoneservice)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Blues")+
+  labs(
+    fill = "Phone Service",
+    title = "Customer Churn by Phone Service"
+  )+
+  theme_void()
+```
+
+```{r}
+# plotting the distribution of churn by internet service 
+# ---
+#
+# 
+internet_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(internetservice)
+internet_churn
+
+ggplot(data=internet_churn, aes(x="", y=n, fill=internetservice)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set2")+
+  labs(
+    fill = "Internet Service",
+    title = "Customer Churn by Internet Service"
+  )+
+  theme_void()
+```
+
+```{r}
+# plotting the distribution of churn by payment method
+# ---
+#
+# 
+payment_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(paymentmethod)
+payment_churn
+
+ggplot(data=payment_churn, aes(x="", y=n, fill=paymentmethod)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set2")+
+  labs(
+    fill = "Payment Method",
+    title = "Customer Churn by Payment Method"
+  )+
+  theme_void()
+```
+
+```{r}
+# plotting the distribution of churn by contract
+# ---
+#
+# 
+contract_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(contract)
+contract_churn
+
+ggplot(data=contract_churn, aes(x="", y=n, fill=contract)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Set2")+
+  labs(
+    fill = "Contract",
+    title = "Customer Churn by Contract"
+  )+
+  theme_void()
+```
+
+```{r}
+# plotting the distribution of churn by paperless billing
+# 
+# ---
+paperless_churn <- telecom_customer_df %>%
+  filter(churn =="Yes") %>%
+  count(paperlessbilling)
+paperless_churn
+
+ggplot(data=paperless_churn, aes(x="", y=n, fill=paperlessbilling)) +
+  geom_bar(
+    stat="identity", width=0.5, color = "white"
+  ) +
+  coord_polar("y") +
+  geom_text(
+    aes(label = paste0(round(n / sum(n) * 100, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_brewer(palette="Paired")+
+  labs(
+    fill = "Paperless Billing",
+    title = "Customer Churn by Paperless Billing"
+  )+
+  theme_void()
+
+```
+##General Analysis
+
+```{r}
+# previewing our data set's gender distribution
+# Create the summary table
+gender_df <- telecom_customer_df %>% 
+  count(gender)
+gender_df
+
+# Plotting the chart
+ggplot(gender_df, aes(x = gender, y = n)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "dark blue"
+  ) +
+  labs(
+    title = "Gender distribution of Subscribers", 
+    x = "Gender", 
+    y = "Subscribers"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=16, family="Arial", color = "blue")
+  )
+```
+```{r}
+# previewing our data set's Senior distribution
+# Create the summary table
+snr_df <- telecom_customer_df %>% 
+  count(seniorcitizen)
+snr_df
+
+# Plotting the chart
+ggplot(snr_df, aes(x = seniorcitizen, y = n)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "dark orange"
+  ) +
+  labs(
+    title = "Senior Citizen Distribution of Subscribers", 
+    x = "Senior", 
+    y = "Subscribers"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=16, family="Arial", color = "blue")
+  )
+```
+```{r}
+# Plotting a distribution of subscribers with partners and those without
+
+# Create the summary table
+ptnr_df <- telecom_customer_df %>% 
+  count(partner)
+ptnr_df
+
+# Plotting the chart
+ggplot(ptnr_df, aes(x = partner, y = n)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "light green"
+  ) +
+  labs(
+    title = "Patner Distribution of Subscribers", 
+    x = "Patner", 
+    y = "Subscribers"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=16, family="Arial", color = "blue")
+  )
+```
+
+```{r}
+# plotting a distribution of customers with dependents and those without
+
+# Create the summary table
+dependent_df <- telecom_customer_df %>% 
+  count(dependents)
+dependent_df
+
+# Plotting the chart
+ggplot(dependent_df, aes(x = dependents, y = n)) +
+  geom_col(
+    stat="identity", width=0.5, fill = "maroon"
+  ) +
+  labs(
+    title = "Dependents Distribution of Subscribers", 
+    x = "Dependents", 
+    y = "Subscribers"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size=16, family="Arial", color = "blue")
+  )
+```
+
+## Summary of Findings
+
+Based on the results of the analysis, the following conclusions were arrived at:
+
+There is no significant difference in churn rate between male and female subscribers. So this is not an area management needs to worry about.
+Majority of the customers are not senior citizens so this makes this dataset biased and hard to identify whether being a senior citizen affects churn rate.
+Not having a partner increases the likelihood of churning.
+Not having dependents increases the likelihood of churning.
+Monhtly contract customers have a higher likelyhood to churn compared to those with long term contract
+  
+  
+  
+## Recommendations
+
+In order to create an effective customer retention program, management should take the following measures:
+
+Focus more on meeting the needs of non-senior citizens.
+Focus more on having customers that have partners and/or dependents since these people are less likely to churn.        Alternatively, management can come up with services specifically designed for customers without parters and/or dependents. This would require additional research.
+Focus more on getting customers to long term contract
+
+
+
+
